@@ -4,12 +4,12 @@ const methodOverride = require('method-override');
 const pg = require('pg');
 
 // Initialise postgres client
-const config = {
-  user: 'akira',
+const configs = {
+  user: 'Jay',
   host: '127.0.0.1',
   database: 'pokemons',
   port: 5432,
-});
+};
 
 const pool = new pg.Pool(configs);
 
@@ -42,37 +42,58 @@ app.engine('jsx', reactEngine);
  * ===================================
  */
 
-app.get('/', (req, response) => {
+app.get('/', (req, resp) => {
   // query database for all pokemon
 
   // respond with HTML page displaying all pokemon
   //
-  const queryString = 'SELECT * from pokemon'
+  const queryString = 'SELECT * FROM pokemon';
 
-  pool.query(queryString, (err, result) => {
+  pool.query(queryString, (err, res) => {
     if (err) {
       console.error('query error:', err.stack);
     } else {
-      console.log('query result:', result);
+      console.log('query result:', res);
 
-      // redirect to home page
-      response.send( result.rows );
+      let context = {pokemon : res.rows};
+      resp.render('Home', context);
+
+    // redirect to home page
     }
   });
-
 });
 
-app.get('/new', (request, response) => {
+
+app.get('/pokemon/new', (req, resp) => {
   // respond with HTML page with form to create new pokemon
-  response.render('new');
+  resp.render('New');
 });
 
 
-app.post('/pokemon', (req, response) => {
-  let params = req.body;
+app.get('/pokemon/:id', (req, resp) => {
+  // Get specific pokemon by primary ID
 
-  const queryString = 'INSERT INTO pokemon(name, height) VALUES($1, $2)'
-  const values = [params.name, params.height];
+  const queryString = `SELECT * FROM pokemon WHERE id = ${req.params.id}`;
+
+  pool.query(queryString, (err, res) => {
+    if (err) {
+      console.error('query error:', err.stack);
+    } else {
+      console.log('query result:', res);
+
+      let context = {pokemon : res.rows[0]};
+      resp.render('Pokemon', context);
+
+    }
+  });
+});
+
+
+app.post('/pokemon', (req, resp) => {
+  let params = req.body;
+  console.log(`this is params: ${params}`);
+  const queryString = 'INSERT INTO pokemon(num, name, img, height, weight) VALUES($1, $2, $3, $4, $5)';
+  const values = [params.num, params.name, params.img, params.height, params.weight];
 
   pool.query(queryString, values, (err, res) => {
     if (err) {
@@ -81,7 +102,60 @@ app.post('/pokemon', (req, response) => {
       console.log('query result:', res);
 
       // redirect to home page
-      response.redirect('/');
+      resp.redirect('/');
+    }
+  });
+});
+
+
+app.get('/pokemon/:id/edit', (req, resp) => {
+
+  const queryString = `SELECT * FROM pokemon WHERE id = ${req.params.id}`;
+  
+  pool.query(queryString, (err, res) => {
+    if (err) {
+      console.log('query error:', err.stack);
+    } else {
+      console.log('query result:', res);
+
+      let context = {pokemon : res.rows[0]};
+      resp.render('Edit', context);
+    }
+  });
+});
+
+
+app.put('/pokemon/edit/:id', (req, resp) => {
+
+  let pokemonEdit = req.body;
+
+  const queryString = 'UPDATE pokemon SET num=$1, name=$2, img=$3, height=$4, weight=$5 WHERE id = $6';
+  const values = [pokemonEdit.num, pokemonEdit.name, pokemonEdit.img, pokemonEdit.height, pokemonEdit.weight, req.params.id];
+
+
+  pool.query(queryString, values, (err, res) => {
+    if (err) {
+      console.log('query error:', err.stack);
+    } else {
+      console.log('query result:', res);
+
+      resp.redirect(`/pokemon/${req.params.id}`);
+    }
+  });
+});
+
+
+app.delete('/pokemon/edit/:id', (req, resp) => {
+
+  const queryString = `DELETE from pokemon WHERE id = ${req.params.id}`;
+
+  pool.query(queryString, (err, res) => {
+    if (err) {
+      console.log('query error:', err.stack);
+    } else {
+      console.log('query result:', res);
+
+      resp.redirect('/');
     }
   });
 });
